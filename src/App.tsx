@@ -15,8 +15,8 @@ function App() {
  {/**
   * Make a Current Leave table with status 
   */}
-  <AdminLeavePage/>
-{/* <UserLeavePage/> */}
+  {/* <AdminLeavePage/> */}
+<UserLeavePage/>
 
     {/* Make a Leave history table:
     for both approved and rejected
