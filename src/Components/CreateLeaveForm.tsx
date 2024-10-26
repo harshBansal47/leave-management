@@ -3,15 +3,15 @@ import { DateRange } from 'react-date-range';
 import { format } from 'date-fns';
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
-import {createLeave} from '../LeaveServices/index'
+import { createLeave } from '../LeaveServices/index'
 
-interface LeaveData{
-    type: "Annual Leave" | "Casual Leave" | "Sick Leave";
-    status: "Pending" | "Approved" | "Rejected";
-    dates: string; 
-    notes: string;
-  }
-  
+interface LeaveData {
+  type: "Annual Leave" | "Casual Leave" | "Sick Leave";
+  status: "Pending" | "Approved" | "Rejected";
+  dates: string;
+  notes: string;
+}
+
 
 interface CreateLeaveFormProps {
   onLeaveCreate: (leave: LeaveData) => void;
@@ -40,7 +40,7 @@ const CreateLeaveForm: React.FC<CreateLeaveFormProps> = ({ onLeaveCreate, onClos
       dates,
       notes,
     };
-    
+
     try {
       const data = await createLeave(formData); // Use the imported function
       console.log('Leave created successfully:', data);
@@ -71,7 +71,7 @@ const CreateLeaveForm: React.FC<CreateLeaveFormProps> = ({ onLeaveCreate, onClos
             <select
               className="border rounded-lg w-full p-2 focus:outline-none focus:border-blue-500"
               value={leaveType}
-              onChange={(e) => setLeaveType(e.target.value)}
+              onChange={(e) => setLeaveType(e.target.value as "Annual Leave" | "Casual Leave" | "Sick Leave")}
               required
             >
               <option value="Annual Leave">Annual Leave</option>

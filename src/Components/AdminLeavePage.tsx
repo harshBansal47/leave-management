@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { format, parseISO, isSameMonth, isSameYear } from 'date-fns';
+import { parseISO, isSameMonth, isSameYear } from 'date-fns';
 import Table from './Table';
 import { MRT_ColumnDef } from 'material-react-table';
 import { FaCheckCircle, FaTimesCircle } from 'react-icons/fa';

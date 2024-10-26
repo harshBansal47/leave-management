@@ -1,18 +1,20 @@
 import axios from 'axios';
 
-interface LeaveType {
+export interface LeaveType {
   type: "Annual Leave" | "Casual Leave" | "Sick Leave";
   status: "Pending" | "Approved" | "Rejected";
   dates: string; 
   notes: string;
 }
 
-interface EmployeeLeaveSummary {
+export interface EmployeeLeaveSummary {
   totalLeavesInMonth: number;
   totalLeavesInFiscalYear: number;
   allLeaves: LeaveType[];
   latestLeave: LeaveType | null;
 }
+
+
 
 
 const fetchLeaveData = async (emp_id: string): Promise<EmployeeLeaveSummary | null> => {
@@ -94,6 +96,7 @@ const fetchLeaveData = async (emp_id: string): Promise<EmployeeLeaveSummary | nu
 
 
  const createLeave = async (leaveData: LeaveType): Promise<any> => {
+  console.log("leave request",leaveData);
     const response = await fetch('/api/leaves', {
       method: 'POST',
       headers: {
