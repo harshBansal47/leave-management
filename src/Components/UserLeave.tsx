@@ -4,7 +4,7 @@ import 'react-date-range/dist/theme/default.css';
 import Table from './Table';
 import { MRT_ColumnDef } from 'material-react-table';
 import CreateLeaveForm from './CreateLeaveForm';
-import { fetchLeaveData, EmployeeLeaveSummary, LeaveType } from '../LeaveServices';
+import { fetchLeaveData, EmployeeLeaveSummary, LeaveType } from '../Services';
 
 const UserLeavePage: React.FC = () => {
   const [showForm, setShowForm] = useState(false);

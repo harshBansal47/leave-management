@@ -1,8 +1,16 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { parseISO, isSameMonth, isSameYear } from 'date-fns';
+import React, { useState, useMemo, Dispatch, SetStateAction } from 'react';
+
+import StatCard from './StatCard';
 import Table from './Table';
 import { MRT_ColumnDef } from 'material-react-table';
 import { FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
+import CreateLeaveForm from './CreateLeaveForm';
+import { Line } from 'react-chartjs-2';
+import ChartContainer from './ChartBox';
+import { ThisWeekLeaves } from './WeeklyLeavesSection';
+
+
+
 
 interface LeaveData {
     username: string;
@@ -12,6 +20,16 @@ interface LeaveData {
     notes: string;
 }
 
+interface AdminActivity {
+    action: "Approved" | "Rejected";
+    username: string;
+    type: string;
+    dates: string;
+    timestamp: string; // When the action was taken
+}
+
+const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
 const AdminLeavePage: React.FC = () => {
     const [leaveRequests, setLeaveRequests] = useState<LeaveData[]>([
         { username: 'john_doe', type: 'Sick Leave', status: 'Pending', dates: '2024-10-01 to 2024-10-03', notes: 'Fever' },
@@ -19,192 +37,239 @@ const AdminLeavePage: React.FC = () => {
         { username: 'kevin_vandy', type: 'Annual Leave', status: 'Rejected', dates: '2024-09-20 to 2024-09-22', notes: 'Vacation' },
     ]);
 
+    const [adminActivities, setAdminActivities] = useState<AdminActivity[]>([
+        { action: 'Approved', username: 'john_doe', type: 'Sick Leave', dates: '2024-10-01 to 2024-10-03', timestamp: '2024-10-01 09:45' },
+        { action: 'Rejected', username: 'jane_doe', type: 'Casual Leave', dates: '2024-10-15', timestamp: '2024-10-14 14:00' },
+        { action: 'Approved', username: 'kevin_vandy', type: 'Annual Leave', dates: '2024-09-20 to 2024-09-22', timestamp: '2024-09-19 16:30' },
+    ]);
+
+    const [showForm, setShowForm] = useState<boolean>(false);
     const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
-    const [employeeData, setEmployeeData] = useState<LeaveData[]>([]);
-    const [employeesOnLeaveToday, setEmployeesOnLeaveToday] = useState<LeaveData[]>([]);
+    const [employeeData, setEmployeeData] = useState<LeaveData[]>(leaveRequests);
+    const employeeOptions = Array.from(new Set(leaveRequests.map((leave) => leave.username)));
 
-    useEffect(() => {
-        if (selectedEmployee) {
-            const employeeLeaves = leaveRequests.filter((leave) => leave.username === selectedEmployee);
-            setEmployeeData(employeeLeaves);
-        } else {
-            setEmployeeData([]);
+    const handleApprove = async (index: number) => {
+        const leave = leaveRequests[index];
+        try {
+            await LeaveService.updateLeaveStatus(leave.id, 'Approved');
+            updateLeaveStatus(index, 'Approved');
+        } catch (error) {
+            console.error('Failed to approve leave:', error);
+            // Optionally show a notification to the user
         }
-    }, [selectedEmployee, leaveRequests]);
-
-    const handleApprove = (index: number) => {
-        const updatedRequests = [...leaveRequests];
-        updatedRequests[index].status = 'Approved';
-        setLeaveRequests(updatedRequests);
     };
 
-    const handleReject = (index: number) => {
-        const updatedRequests = [...leaveRequests];
-        updatedRequests[index].status = 'Rejected';
-        setLeaveRequests(updatedRequests);
+    const handleReject = async (index: number) => {
+        const leave = leaveRequests[index];
+        try {
+            await LeaveService.updateLeaveStatus(leave.id, 'Rejected');
+            updateLeaveStatus(index, 'Rejected');
+        } catch (error) {
+            console.error('Failed to reject leave:', error);
+            // Optionally show a notification to the user
+        }
     };
 
-    const columnsRequests = useMemo<MRT_ColumnDef<LeaveData>[]>(() => [
+    const logAdminActivity = (action: "Approved" | "Rejected", leaveData: LeaveData) => {
+        const activity: AdminActivity = {
+            action,
+            username: leaveData.username,
+            type: leaveData.type,
+            dates: leaveData.dates,
+            timestamp: new Date().toLocaleString(),
+        };
+        setAdminActivities((prevActivities) => [activity, ...prevActivities]);
+    };
+
+    const monthlyLeaveData = {
+        labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+        datasets: [
+            {
+                label: 'Monthly Leave Requests',
+                data: [5, 10, 8, 12, 6, 15, 9, 7, 11, 14, 8, 13],
+                borderColor: '#007acc',
+                backgroundColor: 'rgba(0, 122, 204, 0.2)',
+                fill: true,
+            },
+        ],
+    };
+
+    const weeklyLeaveData = {
+        labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+        datasets: [
+            {
+                label: 'Weekly Leave Requests',
+                data: [3, 7, 5, 9],
+                borderColor: '#c0392b',
+                backgroundColor: 'rgba(192, 57, 43, 0.2)',
+                fill: true,
+            },
+        ],
+    };
+
+    const columnsRequests: MRT_ColumnDef<LeaveData>[] = useMemo(() => [
+        { accessorKey: 'username', header: 'Username' },
+        { accessorKey: 'type', header: 'Leave Type' },
+        { accessorKey: 'dates', header: 'Dates' },
         {
-            accessorKey: 'username',
-            header: 'Username',
-            cellStyle: { color: '#3b82f6' },
-        },
-        {
-            accessorKey: 'type',
-            header: 'Leave Type',
-        },
-        {
-            accessorKey: 'dates',
-            header: 'Dates',
-        },
-        {
-            accessorKey: 'status',
-            header: 'Status',
+            accessorKey: 'status', header: 'Status',
             Cell: ({ row }) => (
-                <span
-                    className={
-                        row.original.status === 'Approved'
-                            ? 'text-green-600 font-semibold'
-                            : row.original.status === 'Rejected'
-                                ? 'text-red-600 font-semibold'
-                                : 'text-yellow-600 font-semibold'
-                    }
-                >
+                <span className={
+                    row.original.status === 'Approved' ? 'text-green-600 font-semibold' :
+                        row.original.status === 'Rejected' ? 'text-red-600 font-semibold' :
+                            'text-yellow-600 font-semibold'
+                }>
                     {row.original.status}
                 </span>
-            ),
+            )
         },
         {
-            accessorKey: 'actions',
-            header: 'Actions',
+            accessorKey: 'actions', header: 'Actions',
             Cell: ({ row }) => (
                 <div className="flex gap-2">
-                    <FaCheckCircle
-                        className="text-green-500 cursor-pointer hover:text-green-700 transition duration-200"
-                        onClick={() => handleApprove(row.index)}
-                    />
-                    <FaTimesCircle
-                        className="text-red-500 cursor-pointer hover:text-red-700 transition duration-200"
-                        onClick={() => handleReject(row.index)}
-                    />
+                    <FaCheckCircle className="text-green-500 cursor-pointer hover:text-green-700"
+                        onClick={() => handleApprove(row.index)} />
+                    <FaTimesCircle className="text-red-500 cursor-pointer hover:text-red-700"
+                        onClick={() => handleReject(row.index)} />
                 </div>
-            ),
+            )
         },
     ], [handleApprove, handleReject]);
 
-    const employeeOptions = Array.from(new Set(leaveRequests.map((leave) => leave.username)));
-
-    const totalLeavesYear = useMemo(() => {
-        return employeeData.filter((leave) => leave.status === 'Approved' && isSameYear(parseISO(leave.dates.split(' to ')[0]), new Date())).length;
-    }, [employeeData]);
-
-    const totalLeavesMonth = useMemo(() => {
-        return employeeData.filter((leave) => leave.status === 'Approved' && isSameMonth(parseISO(leave.dates.split(' to ')[0]), new Date())).length;
-    }, [employeeData]);
-
-    const columnsEmployeeData = useMemo<MRT_ColumnDef<LeaveData>[]>(() => [
-        {
-            accessorKey: 'type',
-            header: 'Leave Type',
-        },
-        {
-            accessorKey: 'status',
-            header: 'Status',
-        },
-        {
-            accessorKey: 'dates',
-            header: 'Dates',
-        },
-        {
-            accessorKey: 'notes',
-            header: 'Notes',
-        },
-    ], []);
-
     return (
-        <div className="bg-gray-50 min-h-screen p-4">
-            <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-                <h1 className="text-2xl font-bold text-gray-800   pb-2">
-                    Admin Portal : Leave Management
-                </h1>
+        <div className="bg-gray-50 min-h-screen p-6 flex flex-col gap-6">
+            <div className="bg-white p-8 rounded-lg shadow-lg border border-gray-200">
+                <HeaderSection showForm={showForm} setShowForm={setShowForm} />
 
-                <div className="mb-6 mt-4">
-                    <h2 className="text-lg font-semibold text-gray-800 mb-4 border-b-2 border-blue-300 pb-2">
-                        Leave Requests
-                    </h2>
-                    <div className="bg-gray-50 p-4 rounded-lg shadow-inner">
-                        <Table<LeaveData> columns={columnsRequests} data={leaveRequests} />
+                {showForm && (
+                    <div className="mt-4">
+                        <CreateLeaveForm
+                            onLeaveCreate={(newLeave: Omit<LeaveData, 'username'>) => setLeaveRequests([...leaveRequests, { ...newLeave, username: 'default_user' }])}
+                            onClose={() => setShowForm(false)}
+                            isAdmin={true}
+                            employeeList={[{ id: 'name', "name": "name" }]}
+                        />
                     </div>
-                </div>
+                )}
 
-                <div className="mb-6">
-                    <h2 className="text-lg font-semibold text-gray-800 mb-4 border-b-2 border-blue-300 pb-2">
-                        Employees on Leave Today
-                    </h2>
-                    <div className="bg-gray-50 p-4 rounded-lg shadow-inner">
-                        {/* Implement a table or list showing the list of employees on leave today */}
-                    </div>
-                </div>
+                <TableSection title="Leave Requests" data={leaveRequests} columns={columnsRequests} />
 
-                <div className="mb-6">
-                    <h2 className="text-lg font-semibold text-gray-800 mb-4 border-b-2 border-blue-300 pb-2">
-                        Employee Information
-                    </h2>
-                    <div className=" rounded-lg">
-                        <select
-                            className="border rounded-lg p-2 w-full focus:outline-none focus:border-blue-500 bg-gray-50"
-                            value={selectedEmployee || ''}
-                            onChange={(e) => setSelectedEmployee(e.target.value || null)}
-                        >
-                            <option value="">Select an Employee</option>
-                            {employeeOptions.map((username) => (
-                                <option key={username} value={username}>
-                                    {username}
-                                </option>
-                            ))}
-                        </select>
+                <AdminActivitiesTable adminActivities={adminActivities} />
+                <LeaveTrendsSection monthlyData={monthlyLeaveData} weeklyData={weeklyLeaveData} />
+                <ThisWeekLeaves leaveRequests={leaveRequests} />
 
-                        {selectedEmployee && employeeData.length > 0 && (
-                            <div className="mt-4 bg-white rounded-lg p-2 shadow-inner bg-gray-50">
-                                <h3 className="text-lg font-semibold text-gray-800 mb-4 border-b-2 border-blue-300 pb-2">
-                                    Leave Details for {selectedEmployee}
-                                </h3>
-                                <div className="bg-gray-50 p-4 rounded-lg ">
-                                    <div className="grid grid-cols-2 gap-4 mb-4">
-                                        <div className="bg-gradient-to-r from-blue-400 to-blue-600 text-white p-4 rounded-lg shadow">
-                                            <h3 className="text-md font-medium">Total Leaves (Year)</h3>
-                                            <p className="text-3xl font-bold">{totalLeavesYear}</p>
-                                        </div>
-                                        <div className="bg-gradient-to-r from-green-400 to-green-600 text-white p-4 rounded-lg shadow">
-                                            <h3 className="text-md font-medium">Total Leaves (Month)</h3>
-                                            <p className="text-3xl font-bold">{totalLeavesMonth}</p>
-                                        </div>
-                                    </div>
-                                    <div className=" rounded-lg">
-                                        <h2 className="text-lg font-semibold text-gray-800 mb-4 border-b-2 border-blue-300 pb-2 ">
-                                            Leave History
-                                        </h2>
-                                        <div className="bg-gray-50 p-4 rounded-lg shadow-inner">
-                                            <h3 className="text-md font-medium text-gray-700 mb-2">
-                                                Year: 2024
-                                            </h3>
-                                            <h4 className="font-semibold text-gray-700 mt-2 mb-4 border-b pb-1">
-                                                October
-                                            </h4>
-                                            <div className="mt-2">
-                                                <Table columns={columnsEmployeeData} data={employeeData} />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
+                <EmployeeInformationSection
+                    selectedEmployee={selectedEmployee}
+                    setSelectedEmployee={setSelectedEmployee}
+                    employeeData={employeeData}
+                    employeeOptions={employeeOptions}
+                    totalLeavesYear={employeeData.length}
+                    totalLeavesMonth={employeeData.length}
+                    columnsEmployeeData={columnsRequests}
+                />
             </div>
         </div>
     );
 };
 
 export default AdminLeavePage;
+
+// Header Section
+const HeaderSection: React.FC<{ showForm: boolean; setShowForm: Dispatch<SetStateAction<boolean>>; }> = ({ showForm, setShowForm }) => (
+    <div className='mb-6 flex justify-between items-center'>
+        <h1 className="text-2xl font-bold text-gray-800">Admin Portal: Leave Management</h1>
+        <button
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow hover:bg-blue-700 transition"
+            onClick={() => setShowForm(!showForm)}
+        >
+            {showForm ? 'Close Form' : 'Create Leave'}
+        </button>
+    </div>
+);
+
+// Table Section
+const TableSection: React.FC<{ title: string; data: LeaveData[]; columns: MRT_ColumnDef<LeaveData>[]; }> = ({ title, data, columns }) => (
+    <div className="mb-8">
+        <h2 className="text-xl font-semibold text-gray-800 mb-4 border-b-2 border-blue-300 pb-2">{title}</h2>
+        <div className="bg-gray-50 p-4 rounded-lg shadow-inner">
+            <Table columns={columns} data={data} />
+        </div>
+    </div>
+);
+
+// Admin Activities Table
+const AdminActivitiesTable: React.FC<{ adminActivities: AdminActivity[]; }> = ({ adminActivities }) => {
+    const columnsAdminActivities: MRT_ColumnDef<AdminActivity>[] = useMemo(() => [
+        { accessorKey: 'action', header: 'Action Taken' },
+        { accessorKey: 'username', header: 'Username' },
+        { accessorKey: 'type', header: 'Leave Type' },
+        { accessorKey: 'dates', header: 'Dates' },
+        { accessorKey: 'timestamp', header: 'Timestamp' },
+    ], []);
+
+    return (
+        <div className="mb-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4 border-b-2 border-blue-300 pb-2">Admin Activities</h2>
+            <div className="bg-gray-50 p-4 rounded-lg shadow-inner">
+                <Table columns={columnsAdminActivities} data={adminActivities} />
+            </div>
+        </div>
+    );
+};
+
+// Leave Trends Section
+const LeaveTrendsSection: React.FC<{ monthlyData: any; weeklyData: any; }> = ({ monthlyData, weeklyData }) => (
+
+    <div className="mb-8">
+        <h2 className="text-xl font-semibold text-gray-800 mb-4 border-b-2 border-blue-300 pb-2">Leave Trends</h2>
+        <div className="flex flex-col md:flex-row gap-6 justify-between">
+            <ChartContainer title="Monthly Leave Requests" data={monthlyData} />
+            <ChartContainer title="Weekly Leave Requests" data={weeklyData} />
+        </div>
+    </div>
+);
+
+
+// Employee Information Section
+const EmployeeInformationSection: React.FC<{
+    selectedEmployee: string | null;
+    setSelectedEmployee: Dispatch<SetStateAction<string | null>>;
+    employeeData: LeaveData[];
+    employeeOptions: string[];
+    totalLeavesYear: number;
+    totalLeavesMonth: number;
+    columnsEmployeeData: MRT_ColumnDef<LeaveData>[];
+}> = ({
+    selectedEmployee,
+    setSelectedEmployee,
+    employeeData,
+    employeeOptions,
+    totalLeavesYear,
+    totalLeavesMonth,
+    columnsEmployeeData
+}) => (
+        <div className="mb-8">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4 border-b-2 border-blue-300 pb-2">Employee Information</h2>
+            <select
+                className="border rounded-lg p-2 w-full focus:outline-none focus:border-blue-500 bg-gray-50"
+                value={selectedEmployee || ''}
+                onChange={(e) => setSelectedEmployee(e.target.value || null)}
+            >
+                <option value="">Select an Employee</option>
+                {employeeOptions.map((username) => (
+                    <option key={username} value={username}>{username}</option>
+                ))}
+            </select>
+
+            {selectedEmployee && employeeData.length > 0 && (
+                <div className="mt-4 bg-white rounded-lg p-4 shadow-inner">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Leave Details for {selectedEmployee}</h3>
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                        <StatCard label="Total Leaves (Year)" value={totalLeavesYear} bgClass="bg-blue-600" />
+                        <StatCard label="Total Leaves (Month)" value={totalLeavesMonth} bgClass="bg-green-600" />
+                    </div>
+                    <Table columns={columnsEmployeeData} data={employeeData} />
+                </div>
+            )}
+        </div>
+    );
