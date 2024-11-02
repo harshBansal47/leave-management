@@ -1,16 +1,13 @@
-import React, { useState, useMemo, Dispatch, SetStateAction } from 'react';
-
-import StatCard from './StatCard';
-import Table from './Table';
-import { MRT_ColumnDef } from 'material-react-table';
 import { FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
+import React, { Dispatch, SetStateAction, useMemo, useState } from 'react';
+
+import ChartContainer from './ChartBox';
 import CreateLeaveForm from './CreateLeaveForm';
 import { Line } from 'react-chartjs-2';
-import ChartContainer from './ChartBox';
+import { MRT_ColumnDef } from 'material-react-table';
+import StatCard from './StatCard';
+import Table from './Table';
 import { ThisWeekLeaves } from './WeeklyLeavesSection';
-
-
-
 
 interface LeaveData {
     username: string;
@@ -48,27 +45,27 @@ const AdminLeavePage: React.FC = () => {
     const [employeeData, setEmployeeData] = useState<LeaveData[]>(leaveRequests);
     const employeeOptions = Array.from(new Set(leaveRequests.map((leave) => leave.username)));
 
-    const handleApprove = async (index: number) => {
-        const leave = leaveRequests[index];
-        try {
-            await LeaveService.updateLeaveStatus(leave.id, 'Approved');
-            updateLeaveStatus(index, 'Approved');
-        } catch (error) {
-            console.error('Failed to approve leave:', error);
-            // Optionally show a notification to the user
-        }
-    };
+    // const handleApprove = async (index: number) => {
+    //     const leave = leaveRequests[index];
+    //     try {
+    //         await LeaveService.updateLeaveStatus(leave.id, 'Approved');
+    //         updateLeaveStatus(index, 'Approved');
+    //     } catch (error) {
+    //         console.error('Failed to approve leave:', error);
+    //         // Optionally show a notification to the user
+    //     }
+    // };
 
-    const handleReject = async (index: number) => {
-        const leave = leaveRequests[index];
-        try {
-            await LeaveService.updateLeaveStatus(leave.id, 'Rejected');
-            updateLeaveStatus(index, 'Rejected');
-        } catch (error) {
-            console.error('Failed to reject leave:', error);
-            // Optionally show a notification to the user
-        }
-    };
+    // const handleReject = async (index: number) => {
+    //     const leave = leaveRequests[index];
+    //     try {
+    //         await LeaveService.updateLeaveStatus(leave.id, 'Rejected');
+    //         updateLeaveStatus(index, 'Rejected');
+    //     } catch (error) {
+    //         console.error('Failed to reject leave:', error);
+    //         // Optionally show a notification to the user
+    //     }
+    // };
 
     const logAdminActivity = (action: "Approved" | "Rejected", leaveData: LeaveData) => {
         const activity: AdminActivity = {
@@ -128,18 +125,22 @@ const AdminLeavePage: React.FC = () => {
             Cell: ({ row }) => (
                 <div className="flex gap-2">
                     <FaCheckCircle className="text-green-500 cursor-pointer hover:text-green-700"
-                        onClick={() => handleApprove(row.index)} />
+                    // onClick={() => handleApprove(row.index)} 
+                    />
                     <FaTimesCircle className="text-red-500 cursor-pointer hover:text-red-700"
-                        onClick={() => handleReject(row.index)} />
+                    // onClick={() => handleReject(row.index)}
+                    />
                 </div>
             )
         },
-    ], [handleApprove, handleReject]);
+    ], []
+        // [handleApprove, handleReject]
+    );
 
     return (
         <div className="bg-gray-50 min-h-screen p-6 flex flex-col gap-6">
             <div className="bg-white p-8 rounded-lg shadow-lg border border-gray-200">
-                <HeaderSection showForm={showForm} setShowForm={setShowForm} />
+                <HeaderSection showForm={showForm} setShowForm={setShowForm}/>
 
                 {showForm && (
                     <div className="mt-4">
