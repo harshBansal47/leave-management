@@ -1,120 +1,94 @@
+import { AddLeaveRequest, LeaveRecord as LeaveData, LeaveRecord, LeaveStatus } from '../types/Leave';
 import { FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
-import React, { Dispatch, SetStateAction, useMemo, useState } from 'react';
+import React, { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useState } from 'react';
+import { generateMonthlyLeaveData, generateWeeklyLeaveData } from '../Utils/LeaveTrendUtils';
 
 import ChartContainer from './ChartBox';
 import CreateLeaveForm from './CreateLeaveForm';
-import { Line } from 'react-chartjs-2';
+import { EmployeeResponseModel as Employee } from '../types/Employee';
 import { MRT_ColumnDef } from 'material-react-table';
 import StatCard from './StatCard';
 import Table from './Table';
 import { ThisWeekLeaves } from './WeeklyLeavesSection';
-
-interface LeaveData {
-    username: string;
-    type: string;
-    status: string;
-    dates: string;
-    notes: string;
-}
+import employeeServiceInstance from '../Api/employeeService';
+import leaveServiceInstance  from '../Api/leaveService';
 
 interface AdminActivity {
     action: "Approved" | "Rejected";
     username: string;
     type: string;
     dates: string;
-    timestamp: string; // When the action was taken
+    timestamp: string;
 }
 
-const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
 const AdminLeavePage: React.FC = () => {
-    const [leaveRequests, setLeaveRequests] = useState<LeaveData[]>([
-        { username: 'john_doe', type: 'Sick Leave', status: 'Pending', dates: '2024-10-01 to 2024-10-03', notes: 'Fever' },
-        { username: 'jane_doe', type: 'Casual Leave', status: 'Pending', dates: '2024-10-15', notes: 'Family Function' },
-        { username: 'kevin_vandy', type: 'Annual Leave', status: 'Rejected', dates: '2024-09-20 to 2024-09-22', notes: 'Vacation' },
-    ]);
-
-    const [adminActivities, setAdminActivities] = useState<AdminActivity[]>([
-        { action: 'Approved', username: 'john_doe', type: 'Sick Leave', dates: '2024-10-01 to 2024-10-03', timestamp: '2024-10-01 09:45' },
-        { action: 'Rejected', username: 'jane_doe', type: 'Casual Leave', dates: '2024-10-15', timestamp: '2024-10-14 14:00' },
-        { action: 'Approved', username: 'kevin_vandy', type: 'Annual Leave', dates: '2024-09-20 to 2024-09-22', timestamp: '2024-09-19 16:30' },
-    ]);
-
+    const [employeeOptions, setEmployeeOptions] = useState<Employee[]>([]);
+    const [leaveRequests, setLeaveRequests] = useState<LeaveData[]>([]);
+    const [adminActivities, setAdminActivities] = useState<AdminActivity[]>([]);
     const [showForm, setShowForm] = useState<boolean>(false);
-    const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
-    const [employeeData, setEmployeeData] = useState<LeaveData[]>(leaveRequests);
-    const employeeOptions = Array.from(new Set(leaveRequests.map((leave) => leave.username)));
+    const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null); // Corrected type
+    const [employeeData, setEmployeeData] = useState<Employee[]>([]);
+    const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(null); // Track selected employee ID
+    const [selectedEmployeeDetails, setSelectedEmployeeDetails] = useState<LeaveRecord[] | null>(null); // Corrected type
 
-    // const handleApprove = async (index: number) => {
-    //     const leave = leaveRequests[index];
-    //     try {
-    //         await LeaveService.updateLeaveStatus(leave.id, 'Approved');
-    //         updateLeaveStatus(index, 'Approved');
-    //     } catch (error) {
-    //         console.error('Failed to approve leave:', error);
-    //         // Optionally show a notification to the user
-    //     }
-    // };
-
-    // const handleReject = async (index: number) => {
-    //     const leave = leaveRequests[index];
-    //     try {
-    //         await LeaveService.updateLeaveStatus(leave.id, 'Rejected');
-    //         updateLeaveStatus(index, 'Rejected');
-    //     } catch (error) {
-    //         console.error('Failed to reject leave:', error);
-    //         // Optionally show a notification to the user
-    //     }
-    // };
-
-    const logAdminActivity = (action: "Approved" | "Rejected", leaveData: LeaveData) => {
-        const activity: AdminActivity = {
-            action,
-            username: leaveData.username,
-            type: leaveData.type,
-            dates: leaveData.dates,
-            timestamp: new Date().toLocaleString(),
+    // Fetch all employees and set options for dropdown
+    useEffect(() => {
+        const fetchEmployees = async () => {
+            const result = await employeeServiceInstance.getAllEmployees();
+            if (result.status === 'success') {
+                setEmployeeOptions(result.employees);
+                setEmployeeData(result.employees);
+            } else {
+                console.error(result.message);
+            }
         };
-        setAdminActivities((prevActivities) => [activity, ...prevActivities]);
-    };
+        fetchEmployees();
+    }, []);
 
-    const monthlyLeaveData = {
-        labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
-        datasets: [
-            {
-                label: 'Monthly Leave Requests',
-                data: [5, 10, 8, 12, 6, 15, 9, 7, 11, 14, 8, 13],
-                borderColor: '#007acc',
-                backgroundColor: 'rgba(0, 122, 204, 0.2)',
-                fill: true,
-            },
-        ],
-    };
+    // Wrap handleApprove in useCallback to prevent it from changing on every render
+    const handleApprove = useCallback(async (index: number) => {
+        const leave = leaveRequests[index];
+        try {
+            await leaveServiceInstance.updateLeaveStatus({
+                leaveId: leave.leaveId,
+                status: 'Approved' as LeaveStatus,
+                approvedBy: 'Admin',
+                adminId: 1 // Replace with actual admin ID if needed
+            });
+            // updateLeaveStatus(index, 'Approved');
+        } catch (error) {
+            console.error('Failed to approve leave:', error);
+        }
+    }, [leaveRequests]);
 
-    const weeklyLeaveData = {
-        labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-        datasets: [
-            {
-                label: 'Weekly Leave Requests',
-                data: [3, 7, 5, 9],
-                borderColor: '#c0392b',
-                backgroundColor: 'rgba(192, 57, 43, 0.2)',
-                fill: true,
-            },
-        ],
-    };
+    // Wrap handleReject in useCallback to prevent it from changing on every render
+    const handleReject = useCallback(async (index: number) => {
+        const leave = leaveRequests[index];
+        try {
+            await leaveServiceInstance.updateLeaveStatus({
+                leaveId: leave.leaveId,
+                status: 'Rejected' as LeaveStatus,
+                approvedBy: 'Admin',
+                adminId: 1 // Replace with actual admin ID if needed
+            });
+            // updateLeaveStatus(index, 'Rejected');
+        } catch (error) {
+            console.error('Failed to reject leave:', error);
+        }
+    }, [leaveRequests]);
 
     const columnsRequests: MRT_ColumnDef<LeaveData>[] = useMemo(() => [
-        { accessorKey: 'username', header: 'Username' },
-        { accessorKey: 'type', header: 'Leave Type' },
-        { accessorKey: 'dates', header: 'Dates' },
+        { accessorKey: 'employeeId', header: 'Employee ID' },
+        { accessorKey: 'leaveType', header: 'Leave Type' },
+        { accessorKey: 'fromDate', header: 'From Date' },
+        { accessorKey: 'toDate', header: 'To Date' },
         {
             accessorKey: 'status', header: 'Status',
             Cell: ({ row }) => (
                 <span className={
                     row.original.status === 'Approved' ? 'text-green-600 font-semibold' :
-                        row.original.status === 'Rejected' ? 'text-red-600 font-semibold' :
-                            'text-yellow-600 font-semibold'
+                    row.original.status === 'Rejected' ? 'text-red-600 font-semibold' :
+                    'text-yellow-600 font-semibold'
                 }>
                     {row.original.status}
                 </span>
@@ -125,45 +99,68 @@ const AdminLeavePage: React.FC = () => {
             Cell: ({ row }) => (
                 <div className="flex gap-2">
                     <FaCheckCircle className="text-green-500 cursor-pointer hover:text-green-700"
-                    // onClick={() => handleApprove(row.index)} 
-                    />
+                        onClick={() => handleApprove(row.index)} />
                     <FaTimesCircle className="text-red-500 cursor-pointer hover:text-red-700"
-                    // onClick={() => handleReject(row.index)}
-                    />
+                        onClick={() => handleReject(row.index)} />
                 </div>
             )
         },
-    ], []
-        // [handleApprove, handleReject]
-    );
+    ], [handleApprove, handleReject]);
+
+    // Fetch the details of the selected employee
+    useEffect(() => {
+        if (selectedEmployeeId !== null) {
+            const fetchEmployeeDetails = async () => {
+                const result = await leaveServiceInstance.getLeavesByEmployeeId(selectedEmployeeId);
+                if (result.status === 'success') {
+                    setSelectedEmployeeDetails(result.leaves);
+                } else {
+                    console.error(result.message);
+                }
+            };
+            fetchEmployeeDetails();
+        }
+    }, [selectedEmployeeId]);
+
+    // Handle employee selection change
+    const handleEmployeeSelect = (employeeName: string) => {
+        const selectedEmployee = employeeOptions.find(
+            (emp) => `${emp.firstName} ${emp.lastName}` === employeeName
+        );
+        if (selectedEmployee) {
+            setSelectedEmployeeId(selectedEmployee.employeeId);
+        }
+    };
 
     return (
         <div className="bg-gray-50 min-h-screen p-6 flex flex-col gap-6">
             <div className="bg-white p-8 rounded-lg shadow-lg border border-gray-200">
-                <HeaderSection showForm={showForm} setShowForm={setShowForm}/>
+                <HeaderSection showForm={showForm} setShowForm={setShowForm} />
 
                 {showForm && (
                     <div className="mt-4">
                         <CreateLeaveForm
-                            onLeaveCreate={(newLeave: Omit<LeaveData, 'username'>) => setLeaveRequests([...leaveRequests, { ...newLeave, username: 'default_user' }])}
+                            onLeaveCreate={(newLeave: AddLeaveRequest) => {
+                                const leaveWithUsername = { ...newLeave, username: 'default_user' };
+                                setLeaveRequests([...leaveRequests, leaveWithUsername]);
+                            }}
                             onClose={() => setShowForm(false)}
                             isAdmin={true}
-                            employeeList={[{ id: 'name', "name": "name" }]}
+                            employeeList={employeeOptions.map((emp) => ({ id: emp.employeeId, name: `${emp.firstName} ${emp.lastName}` }))}
                         />
                     </div>
                 )}
 
                 <TableSection title="Leave Requests" data={leaveRequests} columns={columnsRequests} />
-
                 <AdminActivitiesTable adminActivities={adminActivities} />
-                <LeaveTrendsSection monthlyData={monthlyLeaveData} weeklyData={weeklyLeaveData} />
+                <LeaveTrendsSection monthlyData={generateMonthlyLeaveData(leaveRequests)} weeklyData={generateWeeklyLeaveData(leaveRequests)} />
                 <ThisWeekLeaves leaveRequests={leaveRequests} />
 
                 <EmployeeInformationSection
-                    selectedEmployee={selectedEmployee}
-                    setSelectedEmployee={setSelectedEmployee}
-                    employeeData={employeeData}
-                    employeeOptions={employeeOptions}
+                    selectedEmployee={selectedEmployeeId}
+                    setSelectedEmployee={handleEmployeeSelect}
+                    employeeData={selectedEmployeeDetails ?? []} // Corrected to avoid undefined
+                    employeeOptions={employeeOptions.map(emp => `${emp.firstName} ${emp.lastName}`)}
                     totalLeavesYear={employeeData.length}
                     totalLeavesMonth={employeeData.length}
                     columnsEmployeeData={columnsRequests}
@@ -174,6 +171,7 @@ const AdminLeavePage: React.FC = () => {
 };
 
 export default AdminLeavePage;
+
 
 // Header Section
 const HeaderSection: React.FC<{ showForm: boolean; setShowForm: Dispatch<SetStateAction<boolean>>; }> = ({ showForm, setShowForm }) => (

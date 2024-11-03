@@ -1,10 +1,10 @@
-import React from 'react';
-import logo from './logo.svg';
 import './App.css';
-import AdminLeavePage from './Components/AdminLeavePage';
-import UserLeavePage from './Components/UserLeave';
-import CreateLeaveForm from './Components/CreateLeaveForm';
 
+import AdminLeavePage from './Components/AdminLeavePage';
+import CreateLeaveForm from './Components/CreateLeaveForm';
+import React from 'react';
+import UserLeavePage from './Components/UserLeave';
+import logo from './logo.svg';
 
 function App() {
   return (

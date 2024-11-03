@@ -1,26 +1,26 @@
-import { parseISO, isSameWeek, format, startOfWeek, addDays, addWeeks } from 'date-fns';
+import { addDays, addWeeks, format, parseISO, startOfWeek } from 'date-fns';
+
+import { LeaveRecord } from '../types/Leave';
 import { useState } from 'react';
 
-interface LeaveData {
-    username: string;
-    type: string;
-    status: string;
-    dates: string;
-    notes: string;
+interface LeaveDay {
+    day: number;
+    dateStr: string;
 }
 
-
-export const ThisWeekLeaves: React.FC<{ leaveRequests: LeaveData[] }> = ({ leaveRequests }) => {
+export const ThisWeekLeaves: React.FC<{ leaveRequests: LeaveRecord[] }> = ({ leaveRequests }) => {
     const [currentWeekOffset, setCurrentWeekOffset] = useState(0);
     const currentWeekStart = startOfWeek(addWeeks(new Date(), currentWeekOffset), { weekStartsOn: 1 });
 
-    const getLeaveDaysForEmployee = (dates: string) => {
-        const [startDate, endDate] = dates.split(' to ').map(date => parseISO(date));
-        const leaveDays: { day: number, dateStr: string }[] = [];
+    // Get leave days for an employee within the current week
+    const getLeaveDaysForEmployee = (fromDate: string, toDate: string): LeaveDay[] => {
+        const startDate = parseISO(fromDate);
+        const endDate = parseISO(toDate);
+        const leaveDays: LeaveDay[] = [];
 
-        for (let day = 0; day <= 6; day++) {
+        for (let day = 0; day < 6; day++) { // Loop through Monday to Saturday (6 days)
             const currentDay = addDays(currentWeekStart, day);
-            if (currentDay >= startDate && currentDay <= endDate && day >= 0 && day < 6) {
+            if (currentDay >= startDate && currentDay <= endDate) {
                 leaveDays.push({
                     day,
                     dateStr: format(currentDay, 'dd MMM'),
@@ -33,11 +33,11 @@ export const ThisWeekLeaves: React.FC<{ leaveRequests: LeaveData[] }> = ({ leave
     const dayLeaveCount = Array(6).fill(0);
 
     const employeeLeaveData = leaveRequests.map(leave => {
-        const leaveDays = getLeaveDaysForEmployee(leave.dates);
+        const leaveDays = getLeaveDaysForEmployee(leave.fromDate, leave.toDate);
         leaveDays.forEach(day => {
             dayLeaveCount[day.day] += 1;
         });
-        return { username: leave.username, leaveDays };
+        return { username: leave.employeeId.toString(), leaveDays }; // Replace with actual employee username if available
     });
 
     const handlePreviousWeek = () => setCurrentWeekOffset(currentWeekOffset - 1);

@@ -1,36 +1,27 @@
-import React, { useState } from 'react';
-import { DateRange } from 'react-date-range';
-import { format } from 'date-fns';
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
-import { createLeave } from '../Services/index';
 
-interface LeaveData {
-  type: "Annual Leave" | "Casual Leave" | "Sick Leave";
-  status: "Pending" | "Approved" | "Rejected";
-  dates: string;
-  notes: string;
-  employeeId?: string;
-}
+import React, { useState } from 'react';
 
-interface Employee {
-  id: string;
-  name: string;
-}
+import { DateRange } from 'react-date-range';
+import { EmployeeResponseModel } from '../types/Employee';
+import { AddLeaveRequest as LeaveData } from '../types/Leave';
+import { format } from 'date-fns';
+import leaveService from '../Api/leaveService';
 
 interface CreateLeaveFormProps {
   onLeaveCreate: (leave: LeaveData) => void;
   onClose: () => void;
-  employeeList?: Employee[]; 
-  isAdmin?: boolean; 
+  employeeList?: EmployeeResponseModel[];
+  isAdmin?: boolean;
 }
 
 const CreateLeaveForm: React.FC<CreateLeaveFormProps> = ({ onLeaveCreate, onClose, employeeList, isAdmin }) => {
-  const [employeeId, setEmployeeId] = useState(employeeList ? employeeList[0]?.id : '');
+  const [employeeId, setEmployeeId] = useState(employeeList ? employeeList[0]?.employeeId : 0);
   const [leaveType, setLeaveType] = useState<"Annual Leave" | "Casual Leave" | "Sick Leave">('Annual Leave');
   const [notes, setNotes] = useState('');
   const [isSingleDay, setIsSingleDay] = useState(true);
-  const [dateRange, setDateRange] = useState<any>({
+  const [dateRange, setDateRange] = useState({
     startDate: new Date(),
     endDate: new Date(),
     key: 'selection',
@@ -38,20 +29,23 @@ const CreateLeaveForm: React.FC<CreateLeaveFormProps> = ({ onLeaveCreate, onClos
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const dates = isSingleDay
-      ? format(dateRange.startDate, 'yyyy-MM-dd')
-      : `${format(dateRange.startDate, 'yyyy-MM-dd')} to ${format(dateRange.endDate, 'yyyy-MM-dd')}`;
+
+    const fromDate = format(dateRange.startDate, 'yyyy-MM-dd');
+    const toDate = isSingleDay ? fromDate : format(dateRange.endDate, 'yyyy-MM-dd');
 
     const formData: LeaveData = {
-      type: leaveType,
+      leaveType,
+      description: notes,
+      employeeId: isAdmin ? employeeId : 0, // Assume `0` if not an admin
+      fromDate,
+      toDate,
       status: 'Pending',
-      dates,
-      notes,
-      employeeId: isAdmin ? employeeId : undefined,
+      approvedBy: isAdmin ? 'Admin' : undefined,
+      adminId: isAdmin ? 1 : 0, // Replace `1` with actual admin ID if available
     };
 
     try {
-      await createLeave(formData);
+      const response = await leaveService.addLeave(formData);
       onLeaveCreate(formData);
       onClose();
       resetForm();
@@ -66,7 +60,7 @@ const CreateLeaveForm: React.FC<CreateLeaveFormProps> = ({ onLeaveCreate, onClos
     setIsSingleDay(true);
     setDateRange({ startDate: new Date(), endDate: new Date(), key: 'selection' });
     if (isAdmin && employeeList) {
-      setEmployeeId(employeeList[0]?.id || '');
+      setEmployeeId(employeeList[0]?.employeeId || 0);
     }
   };
 
@@ -77,25 +71,24 @@ const CreateLeaveForm: React.FC<CreateLeaveFormProps> = ({ onLeaveCreate, onClos
           {isAdmin ? 'Apply Leave for Employee' : 'Apply for Leave'}
         </h2>
         <form onSubmit={handleFormSubmit} className="space-y-6">
-
-          {/* Conditionally show employee dropdown for admin */}
           {isAdmin && employeeList && (
             <div className="space-y-1">
               <label className="block text-gray-700 font-semibold">Select Employee</label>
               <select
                 className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:border-blue-500"
                 value={employeeId}
-                onChange={(e) => setEmployeeId(e.target.value)}
+                onChange={(e) => setEmployeeId(Number(e.target.value))}
                 required
               >
                 {employeeList.map((employee) => (
-                  <option key={employee.id} value={employee.id}>{employee.name}</option>
+                  <option key={employee.employeeId} value={employee.employeeId}>
+                    {employee.firstName} {employee.lastName}
+                  </option>
                 ))}
               </select>
             </div>
           )}
 
-          {/* Leave Type */}
           <div className="space-y-1">
             <label className="block text-gray-700 font-semibold">Leave Type</label>
             <select
@@ -110,7 +103,6 @@ const CreateLeaveForm: React.FC<CreateLeaveFormProps> = ({ onLeaveCreate, onClos
             </select>
           </div>
 
-          {/* Leave Duration */}
           <div className="space-y-2">
             <label className="block text-gray-700 font-semibold">Leave Duration</label>
             <div className="flex items-center space-x-6">
@@ -157,7 +149,6 @@ const CreateLeaveForm: React.FC<CreateLeaveFormProps> = ({ onLeaveCreate, onClos
             </div>
           </div>
 
-          {/* Notes */}
           <div className="space-y-1">
             <label className="block text-gray-700 font-semibold">Notes</label>
             <textarea
@@ -171,7 +162,6 @@ const CreateLeaveForm: React.FC<CreateLeaveFormProps> = ({ onLeaveCreate, onClos
             <p className="text-sm text-gray-500 text-right">{200 - notes.length} characters left</p>
           </div>
 
-          {/* Action Buttons */}
           <div className="flex justify-end space-x-3 mt-6">
             <button
               type="button"

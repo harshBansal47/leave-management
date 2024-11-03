@@ -117,3 +117,8 @@ const fetchLeaveData = async (emp_id: string): Promise<EmployeeLeaveSummary | nu
     createLeave,
     fetchLeaveData,
   }
+
+
+//Create Leave Api for Admin
+//Fetch List of All Employees
+
