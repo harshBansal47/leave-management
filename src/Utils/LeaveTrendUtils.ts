@@ -1,8 +1,7 @@
 // src/utils/leaveTrendsUtils.ts
 
+import { AddLeaveRequest, AddLeaveResponse, GetLeavesByEmployeeIdResponse, LeaveRecord } from '../types/Leave';
 import { format, getMonth, getWeekOfMonth } from 'date-fns';
-
-import { LeaveRecord } from '../types/Leave';
 
 // Generate monthly data for leave requests
 export function generateMonthlyLeaveData(leaves: LeaveRecord[]) {

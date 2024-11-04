@@ -23,13 +23,13 @@ interface AdminActivity {
 
 const AdminLeavePage: React.FC = () => {
     const [employeeOptions, setEmployeeOptions] = useState<Employee[]>([]);
-    const [leaveRequests, setLeaveRequests] = useState<LeaveData[]>([]);
+    const [leaveRequests, setLeaveRequests] = useState<LeaveRecord[]>([]);
     const [adminActivities, setAdminActivities] = useState<AdminActivity[]>([]);
     const [showForm, setShowForm] = useState<boolean>(false);
     const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null); // Corrected type
     const [employeeData, setEmployeeData] = useState<Employee[]>([]);
     const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(null); // Track selected employee ID
-    const [selectedEmployeeDetails, setSelectedEmployeeDetails] = useState<LeaveRecord[] | null>(null); // Corrected type
+    const [selectedEmployeeDetails, setSelectedEmployeeDetails] = useState<LeaveRecord[]|null >(); // Corrected type
 
     // Fetch all employees and set options for dropdown
     useEffect(() => {
@@ -146,14 +146,15 @@ const AdminLeavePage: React.FC = () => {
                             }}
                             onClose={() => setShowForm(false)}
                             isAdmin={true}
-                            employeeList={employeeOptions.map((emp) => ({ id: emp.employeeId, name: `${emp.firstName} ${emp.lastName}` }))}
+                            employeeList={employeeOptions}
+                            // employeeList={employeeOptions.map((emp) => ({ id: emp.employeeId, name: `${emp.firstName} ${emp.lastName}` }))}
                         />
                     </div>
                 )}
 
                 <TableSection title="Leave Requests" data={leaveRequests} columns={columnsRequests} />
                 <AdminActivitiesTable adminActivities={adminActivities} />
-                <LeaveTrendsSection monthlyData={generateMonthlyLeaveData(leaveRequests)} weeklyData={generateWeeklyLeaveData(leaveRequests)} />
+                <LeaveTrendsSection monthlyData={generateMonthlyLeaveData(selectedEmployeeDetails)} weeklyData={generateWeeklyLeaveData(selectedEmployeeDetails)} />
                 <ThisWeekLeaves leaveRequests={leaveRequests} />
 
                 <EmployeeInformationSection
@@ -187,7 +188,7 @@ const HeaderSection: React.FC<{ showForm: boolean; setShowForm: Dispatch<SetStat
 );
 
 // Table Section
-const TableSection: React.FC<{ title: string; data: LeaveData[]; columns: MRT_ColumnDef<LeaveData>[]; }> = ({ title, data, columns }) => (
+const TableSection: React.FC<{ title: string; data: any; columns: MRT_ColumnDef<LeaveData>[]; }> = ({ title, data, columns }) => (
     <div className="mb-8">
         <h2 className="text-xl font-semibold text-gray-800 mb-4 border-b-2 border-blue-300 pb-2">{title}</h2>
         <div className="bg-gray-50 p-4 rounded-lg shadow-inner">
