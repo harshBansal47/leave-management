@@ -28,8 +28,9 @@ const AdminLeavePage: React.FC = () => {
     const [showForm, setShowForm] = useState<boolean>(false);
     const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null); // Corrected type
     const [employeeData, setEmployeeData] = useState<Employee[]>([]);
-    const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(null); // Track selected employee ID
-    const [selectedEmployeeDetails, setSelectedEmployeeDetails] = useState<LeaveRecord[]|null >(); // Corrected type
+    const [selectedEmployeeId, setSelectedEmployeeId] = useState<number>(0); // Track selected employee ID
+    const [selectedEmployeeDetails, setSelectedEmployeeDetails] = useState<LeaveRecord[]>([]);
+
 
     // Fetch all employees and set options for dropdown
     useEffect(() => {
@@ -142,7 +143,7 @@ const AdminLeavePage: React.FC = () => {
                         <CreateLeaveForm
                             onLeaveCreate={(newLeave: AddLeaveRequest) => {
                                 const leaveWithUsername = { ...newLeave, username: 'default_user' };
-                                setLeaveRequests([...leaveRequests, leaveWithUsername]);
+                                // setLeaveRequests([...leaveRequests, leaveWithUsername]);
                             }}
                             onClose={() => setShowForm(false)}
                             isAdmin={true}
@@ -154,7 +155,10 @@ const AdminLeavePage: React.FC = () => {
 
                 <TableSection title="Leave Requests" data={leaveRequests} columns={columnsRequests} />
                 <AdminActivitiesTable adminActivities={adminActivities} />
-                <LeaveTrendsSection monthlyData={generateMonthlyLeaveData(selectedEmployeeDetails)} weeklyData={generateWeeklyLeaveData(selectedEmployeeDetails)} />
+                if(selectedEmployeeDetails!==null){
+                    <LeaveTrendsSection monthlyData={generateMonthlyLeaveData(selectedEmployeeDetails)} weeklyData={generateWeeklyLeaveData(selectedEmployeeDetails)} />
+                }
+                
                 <ThisWeekLeaves leaveRequests={leaveRequests} />
 
                 <EmployeeInformationSection
@@ -232,8 +236,8 @@ const LeaveTrendsSection: React.FC<{ monthlyData: any; weeklyData: any; }> = ({ 
 
 // Employee Information Section
 const EmployeeInformationSection: React.FC<{
-    selectedEmployee: string | null;
-    setSelectedEmployee: Dispatch<SetStateAction<string | null>>;
+    selectedEmployee: number;
+    setSelectedEmployee: (id:string)=>void;
     employeeData: LeaveData[];
     employeeOptions: string[];
     totalLeavesYear: number;
@@ -253,7 +257,7 @@ const EmployeeInformationSection: React.FC<{
             <select
                 className="border rounded-lg p-2 w-full focus:outline-none focus:border-blue-500 bg-gray-50"
                 value={selectedEmployee || ''}
-                onChange={(e) => setSelectedEmployee(e.target.value || null)}
+                onChange={(e) => setSelectedEmployee(e.target.value )}
             >
                 <option value="">Select an Employee</option>
                 {employeeOptions.map((username) => (
